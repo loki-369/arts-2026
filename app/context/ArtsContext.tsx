@@ -12,7 +12,8 @@ import {
     addDoc,
     serverTimestamp,
     setDoc,
-    getDocs
+    getDocs,
+    deleteDoc
 } from "firebase/firestore";
 import {
     onAuthStateChanged,
@@ -22,10 +23,18 @@ import {
 } from "firebase/auth";
 
 const INITIAL_TEAMS = [
-    { name: "Ruby", color: "from-red-500 to-pink-500", points: 0 },
-    { name: "Emerald", color: "from-green-400 to-emerald-600", points: 0 },
-    { name: "Sapphire", color: "from-blue-400 to-indigo-600", points: 0 },
-    { name: "Topaz", color: "from-yellow-400 to-orange-500", points: 0 },
+    { name: "Zoology", color: "from-green-500 to-teal-500", points: 0 },
+    { name: "Botany", color: "from-green-400 to-emerald-600", points: 0 },
+    { name: "Psychology", color: "from-purple-500 to-indigo-500", points: 0 },
+    { name: "B.Com CA", color: "from-blue-500 to-cyan-500", points: 0 },
+    { name: "English", color: "from-red-400 to-pink-500", points: 0 },
+    { name: "B.Com Finance", color: "from-yellow-500 to-orange-500", points: 0 },
+    { name: "Physics", color: "from-indigo-500 to-violet-500", points: 0 },
+    { name: "Chemistry", color: "from-cyan-500 to-blue-600", points: 0 },
+    { name: "Computer Application", color: "from-gray-700 to-gray-900", points: 0 },
+    { name: "Retail Management", color: "from-rose-500 to-red-600", points: 0 },
+    { name: "B.Com Self", color: "from-orange-400 to-amber-500", points: 0 },
+    { name: "Optometry", color: "from-teal-400 to-cyan-600", points: 0 },
 ];
 
 export type Team = {
@@ -40,6 +49,7 @@ type ArtsContextType = {
     login: (email: string, pin: string) => Promise<void>;
     logout: () => Promise<void>;
     updatePoints: (teamName: string, pointsToAdd: number, eventId: string) => Promise<void>;
+    publishBatchResult: (eventName: string, winners: { teamName: string; position: 1 | 2 | 3 }[]) => Promise<void>;
     resetPoints: () => Promise<void>;
     loading: boolean;
 };
@@ -128,17 +138,68 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const publishBatchResult = async (eventName: string, winners: { teamName: string; position: 1 | 2 | 3 }[]) => {
+        if (!user) throw new Error("Unauthorized");
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                // 1. Create Result Doc
+                const newResultRef = doc(collection(db, "results"));
+                transaction.set(newResultRef, {
+                    eventName,
+                    winners, // [{ teamName: "Ruby", position: 1 }, ...]
+                    timestamp: serverTimestamp(),
+                    addedBy: user.uid
+                });
+
+                // 2. Update Leaderboard for each winner
+                for (const winner of winners) {
+                    const points = winner.position === 1 ? 10 : winner.position === 2 ? 5 : 3;
+                    const teamRef = doc(db, "leaderboard", winner.teamName);
+                    const teamDoc = await transaction.get(teamRef);
+
+                    if (!teamDoc.exists()) {
+                        transaction.set(teamRef, { teamName: winner.teamName, points: points });
+                    } else {
+                        const newTotal = (teamDoc.data().points || 0) + points;
+                        transaction.update(teamRef, { points: newTotal });
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("Batch Transaction failed: ", error);
+            throw error;
+        }
+    };
+
     const resetPoints = async () => {
         if (!user) return;
 
-        const lbSnapshot = await getDocs(collection(db, "leaderboard"));
-        for (const d of lbSnapshot.docs) {
-            await setDoc(doc(db, "leaderboard", d.id), { teamName: d.id, points: 0 });
+        try {
+            // 1. Delete ALL existing teams first (to remove old Gemstone teams)
+            const lbSnapshot = await getDocs(collection(db, "leaderboard"));
+
+            // Delete loop
+            const deletePromises = lbSnapshot.docs.map(d => deleteDoc(doc(db, "leaderboard", d.id)));
+            await Promise.all(deletePromises);
+
+            // 2. Create NEW Team docs from INITIAL_TEAMS
+            const createPromises = INITIAL_TEAMS.map(team =>
+                setDoc(doc(db, "leaderboard", team.name), {
+                    teamName: team.name,
+                    points: 0
+                })
+            );
+            await Promise.all(createPromises);
+
+            console.log("Database reset and re-seeded with Departments.");
+        } catch (e) {
+            console.error("Error resetting db:", e);
         }
     };
 
     return (
-        <ArtsContext.Provider value={{ teams, user, login, logout, updatePoints, resetPoints, loading }}>
+        <ArtsContext.Provider value={{ teams, user, login, logout, updatePoints, publishBatchResult, resetPoints, loading }}>
             {children}
         </ArtsContext.Provider>
     );

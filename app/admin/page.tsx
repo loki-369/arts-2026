@@ -19,31 +19,17 @@ const EVENTS_LIST = [
 ];
 
 export default function AdminPage() {
-    const { teams, updatePoints, resetPoints } = useArts();
+    const { teams, updatePoints, resetPoints, publishBatchResult, login, logout } = useArts();
     const [user, setUser] = useState<User | null>(null);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(true);
 
-    const [selectedTeam, setSelectedTeam] = useState(teams[0]?.name || "");
-    const [selectedEventId, setSelectedEventId] = useState(EVENTS_LIST[0].id.toString());
-    const [position, setPosition] = useState("1"); // 1, 2, 3
-
-    // Auto-calculate points based on position and event max points (Simplified logic for now)
-    // In this system: 1st = 10/5, 2nd = 5/3, 3rd = 3/1 based on maxPoints
-    const calculatePoints = () => {
-        const event = EVENTS_LIST.find(e => e.id.toString() === selectedEventId);
-        if (!event) return 0;
-
-        switch (position) {
-            case "1": return event.maxPoints; // Full points
-            case "2": return Math.ceil(event.maxPoints / 2); // Half
-            case "3": return Math.ceil(event.maxPoints / 5); // Consolation/Third
-            default: return 0;
-        }
-    };
-
-    const calculatedPoints = calculatePoints();
+    // Batch Result State
+    const [eventName, setEventName] = useState("");
+    const [firstPlace, setFirstPlace] = useState("");
+    const [secondPlace, setSecondPlace] = useState("");
+    const [thirdPlace, setThirdPlace] = useState("");
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -56,20 +42,45 @@ export default function AdminPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            await login(email, password); // Use context login
         } catch (error) {
             alert("Login Failed: " + (error as any).message);
         }
     };
 
-    const handleLogout = () => signOut(auth);
+    const handleLogout = async () => {
+        await logout();
+    };
 
-    const handlePublish = async (e: React.FormEvent) => {
+    const handleBatchPublish = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (selectedTeam) {
-            const eventName = EVENTS_LIST.find(ev => ev.id.toString() === selectedEventId)?.name || "Unknown Event";
-            await updatePoints(selectedTeam, calculatedPoints, eventName);
-            alert(`✅ Published: ${calculatedPoints} points to ${selectedTeam} for ${eventName} (${position === "1" ? "1st" : position === "2" ? "2nd" : "3rd"} Place)`);
+        if (!eventName || !firstPlace || !secondPlace || !thirdPlace) {
+            alert("Please fill in Event Name and all 3 positions.");
+            return;
+        }
+
+        // Prevent duplicate teams in podium
+        if (new Set([firstPlace, secondPlace, thirdPlace]).size !== 3) {
+            alert("A team cannot win multiple positions in the same event!");
+            return;
+        }
+
+        try {
+            // Use the batch function we added to context
+            await publishBatchResult(eventName, [
+                { teamName: firstPlace, position: 1 },
+                { teamName: secondPlace, position: 2 },
+                { teamName: thirdPlace, position: 3 }
+            ]);
+
+            alert("Leaderboard Updated & Result Published!");
+            setEventName("");
+            setFirstPlace("");
+            setSecondPlace("");
+            setThirdPlace("");
+        } catch (error) {
+            console.error(error);
+            alert("Error publishing result.");
         }
     };
 
@@ -123,84 +134,150 @@ export default function AdminPage() {
                 </header>
 
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 space-y-8">
-                    <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Publish New Score</h2>
-                    <form onSubmit={handlePublish} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Event</label>
-                                <select
-                                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none appearance-none text-gray-900 font-medium"
-                                    value={selectedEventId}
-                                    onChange={(e) => setSelectedEventId(e.target.value)}
-                                >
-                                    {EVENTS_LIST.map(ev => (
-                                        <option key={ev.id} value={ev.id}>{ev.name} ({ev.category})</option>
-                                    ))}
-                                </select>
-                            </div>
+                    <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Publish 3-Position Result</h2>
 
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Team</label>
-                                <select
-                                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none appearance-none text-gray-900 font-medium"
-                                    value={selectedTeam}
-                                    onChange={(e) => setSelectedTeam(e.target.value)}
-                                >
-                                    {teams.map(t => (
-                                        <option key={t.name} value={t.name}>{t.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                    <form onSubmit={handleBatchPublish} className="space-y-8">
+
+                        {/* Event Name */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Event Name</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Oppana, Margamkali, Recitation..."
+                                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-bold text-lg"
+                                value={eventName}
+                                onChange={(e) => setEventName(e.target.value)}
+                            />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Position</label>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {["1", "2", "3"].map((pos) => (
-                                        <button
-                                            key={pos}
-                                            type="button"
-                                            onClick={() => setPosition(pos)}
-                                            className={`p-3 rounded-xl font-bold border-2 transition-all ${position === pos ? 'border-black bg-black text-white' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'}`}
-                                        >
-                                            {pos === "1" ? "🥇 1st" : pos === "2" ? "🥈 2nd" : "🥉 3rd"}
-                                        </button>
-                                    ))}
-                                </div>
+                        {/* Podium Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* 1st Place */}
+                            <div className="space-y-2 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                                <label className="flex items-center gap-2 text-xs font-bold text-yellow-600 uppercase tracking-widest">
+                                    <span className="text-lg">🥇</span> 1st Place (10 pts)
+                                </label>
+                                <select
+                                    className="w-full p-3 bg-white border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none font-medium"
+                                    value={firstPlace}
+                                    onChange={(e) => setFirstPlace(e.target.value)}
+                                >
+                                    <option value="">Select Team</option>
+                                    {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                </select>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Points Awarded</label>
-                                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
-                                    <span className="text-gray-500 font-medium">Auto-calculated</span>
-                                    <span className="text-2xl font-black text-gray-900">{calculatedPoints}</span>
-                                </div>
+                            {/* 2nd Place */}
+                            <div className="space-y-2 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                                    <span className="text-lg">🥈</span> 2nd Place (5 pts)
+                                </label>
+                                <select
+                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none font-medium"
+                                    value={secondPlace}
+                                    onChange={(e) => setSecondPlace(e.target.value)}
+                                >
+                                    <option value="">Select Team</option>
+                                    {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                </select>
+                            </div>
+
+                            {/* 3rd Place */}
+                            <div className="space-y-2 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                                <label className="flex items-center gap-2 text-xs font-bold text-orange-600 uppercase tracking-widest">
+                                    <span className="text-lg">🥉</span> 3rd Place (3 pts)
+                                </label>
+                                <select
+                                    className="w-full p-3 bg-white border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none font-medium"
+                                    value={thirdPlace}
+                                    onChange={(e) => setThirdPlace(e.target.value)}
+                                >
+                                    <option value="">Select Team</option>
+                                    {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                </select>
                             </div>
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full py-5 bg-black text-white rounded-xl font-bold text-lg hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg hover:shadow-2xl"
+                            className="w-full py-5 bg-black text-white rounded-xl font-bold text-lg hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg hover:shadow-2xl flex items-center justify-center gap-2"
                         >
-                            Publish Result 🚀
+                            <span>Publish Full Result</span>
+                            <span className="text-xl">🚀</span>
                         </button>
                     </form>
                 </div>
 
+                {/* Schedule Manager */}
+                <ScheduleManager />
+
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100">
                     <h2 className="text-lg font-bold text-red-600 mb-4">Danger Zone</h2>
-                    <p className="text-gray-500 mb-4 text-sm">This will reset all points for all teams to zero. This action cannot be undone.</p>
+                    <p className="text-gray-500 mb-4 text-sm">This will DELETE ALL TEAMS and re-initialize with the official Departments.</p>
                     <button
                         onClick={() => {
-                            if (confirm("ARE YOU SURE? This will wipe the leaderboard.")) resetPoints();
+                            if (confirm("ARE YOU SURE? This will wipe all data and reset to 0.")) resetPoints();
                         }}
                         className="px-6 py-3 border-2 border-red-100 text-red-500 rounded-xl font-bold hover:bg-red-50 transition-colors"
                     >
-                        Reset Leaderboard
+                        Reset & Initialize Leaderboard
                     </button>
                 </div>
             </div>
         </div>
     );
+}
+
+function ScheduleManager() {
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+
+    async function handleUpload() {
+        if (!file) return;
+        setUploading(true);
+        try {
+            // Dynamic import to avoid SSR issues if any, or just standard import
+            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+            const { doc, setDoc } = await import("firebase/firestore");
+            const { storage, db } = await import("@/lib/firebase");
+
+            const storageRef = ref(storage, 'schedules/latest_poster');
+            await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(storageRef);
+
+            await setDoc(doc(db, "settings", "schedule"), {
+                imageUrl: url,
+                updatedAt: new Date()
+            });
+
+            alert("Schedule Poster Updated!");
+            setFile(null);
+        } catch (e) {
+            console.error(e);
+            alert("Upload failed. Check console.");
+        } finally {
+            setUploading(false);
+        }
+    }
+
+    return (
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+            <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Manage Schedule Poster</h2>
+            <div className="space-y-4">
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <button
+                    onClick={handleUpload}
+                    disabled={!file || uploading}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-blue-700 transition-colors w-full md:w-auto"
+                >
+                    {uploading ? "Uploading..." : "Upload New Poster"}
+                </button>
+            </div>
+        </div>
+    )
 }
