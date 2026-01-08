@@ -131,7 +131,10 @@ export default function AdminPage() {
             <div className="max-w-4xl mx-auto p-6 pt-32 space-y-8">
                 <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100 gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Result Publisher</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl font-bold text-gray-900">Result Publisher</h1>
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wider">v2.0</span>
+                        </div>
                         <p className="text-sm text-gray-500">Logged in as {user.email}</p>
                     </div>
                     <button onClick={handleLogout} className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-red-50 hover:text-red-500 text-sm font-bold transition-colors">
