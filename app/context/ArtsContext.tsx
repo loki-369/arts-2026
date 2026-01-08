@@ -49,7 +49,7 @@ type ArtsContextType = {
     login: (email: string, pin: string) => Promise<void>;
     logout: () => Promise<void>;
     updatePoints: (teamName: string, pointsToAdd: number, eventId: string) => Promise<void>;
-    publishBatchResult: (eventName: string, winners: { teamName: string; position: 1 | 2 | 3 }[]) => Promise<void>;
+    publishBatchResult: (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[]) => Promise<void>;
     resetPoints: () => Promise<void>;
     loading: boolean;
 };
@@ -138,7 +138,7 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const publishBatchResult = async (eventName: string, winners: { teamName: string; position: 1 | 2 | 3 }[]) => {
+    const publishBatchResult = async (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[]) => {
         if (!user) throw new Error("Unauthorized");
 
         try {

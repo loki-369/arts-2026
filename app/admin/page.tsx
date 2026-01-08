@@ -28,8 +28,11 @@ export default function AdminPage() {
     // Batch Result State
     const [eventName, setEventName] = useState("");
     const [firstPlace, setFirstPlace] = useState("");
+    const [firstPlaceName, setFirstPlaceName] = useState("");
     const [secondPlace, setSecondPlace] = useState("");
+    const [secondPlaceName, setSecondPlaceName] = useState("");
     const [thirdPlace, setThirdPlace] = useState("");
+    const [thirdPlaceName, setThirdPlaceName] = useState("");
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -68,16 +71,19 @@ export default function AdminPage() {
         try {
             // Use the batch function we added to context
             await publishBatchResult(eventName, [
-                { teamName: firstPlace, position: 1 },
-                { teamName: secondPlace, position: 2 },
-                { teamName: thirdPlace, position: 3 }
+                { teamName: firstPlace, winnerName: firstPlaceName, position: 1 },
+                { teamName: secondPlace, winnerName: secondPlaceName, position: 2 },
+                { teamName: thirdPlace, winnerName: thirdPlaceName, position: 3 }
             ]);
 
             alert("Leaderboard Updated & Result Published!");
             setEventName("");
             setFirstPlace("");
+            setFirstPlaceName("");
             setSecondPlace("");
+            setSecondPlaceName("");
             setThirdPlace("");
+            setThirdPlaceName("");
         } catch (error: any) {
             console.error(error);
             alert("Error publishing result: " + (error.message || error));
@@ -158,13 +164,20 @@ export default function AdminPage() {
                                     <span className="text-lg">🥇</span> 1st Place (10 pts)
                                 </label>
                                 <select
-                                    className="w-full p-3 bg-white border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none font-medium"
+                                    className="w-full p-3 bg-white border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none font-medium mb-2"
                                     value={firstPlace}
                                     onChange={(e) => setFirstPlace(e.target.value)}
                                 >
                                     <option value="">Select Team</option>
                                     {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                                 </select>
+                                <input
+                                    type="text"
+                                    placeholder="Winner Name(s)"
+                                    className="w-full p-3 bg-white border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-sm placeholder-gray-400"
+                                    value={firstPlaceName}
+                                    onChange={(e) => setFirstPlaceName(e.target.value)}
+                                />
                             </div>
 
                             {/* 2nd Place */}
@@ -173,13 +186,20 @@ export default function AdminPage() {
                                     <span className="text-lg">🥈</span> 2nd Place (5 pts)
                                 </label>
                                 <select
-                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none font-medium"
+                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none font-medium mb-2"
                                     value={secondPlace}
                                     onChange={(e) => setSecondPlace(e.target.value)}
                                 >
                                     <option value="">Select Team</option>
                                     {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                                 </select>
+                                <input
+                                    type="text"
+                                    placeholder="Winner Name(s)"
+                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none text-sm placeholder-gray-400"
+                                    value={secondPlaceName}
+                                    onChange={(e) => setSecondPlaceName(e.target.value)}
+                                />
                             </div>
 
                             {/* 3rd Place */}
@@ -188,13 +208,20 @@ export default function AdminPage() {
                                     <span className="text-lg">🥉</span> 3rd Place (3 pts)
                                 </label>
                                 <select
-                                    className="w-full p-3 bg-white border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none font-medium"
+                                    className="w-full p-3 bg-white border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none font-medium mb-2"
                                     value={thirdPlace}
                                     onChange={(e) => setThirdPlace(e.target.value)}
                                 >
                                     <option value="">Select Team</option>
                                     {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                                 </select>
+                                <input
+                                    type="text"
+                                    placeholder="Winner Name(s)"
+                                    className="w-full p-3 bg-white border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none text-sm placeholder-gray-400"
+                                    value={thirdPlaceName}
+                                    onChange={(e) => setThirdPlaceName(e.target.value)}
+                                />
                             </div>
                         </div>
 

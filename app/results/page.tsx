@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 type Winner = {
     teamName: string;
+    winnerName?: string;
     position: 1 | 2 | 3;
 };
 
@@ -88,7 +89,12 @@ export default function ResultsPage() {
                                                         {pos === 1 ? '1' : pos === 2 ? '2' : '3'}
                                                     </div>
                                                     {winner ? (
-                                                        <span className="font-bold text-gray-800 text-lg">{winner.teamName}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-gray-800 text-lg leading-tight">{winner.teamName}</span>
+                                                            {winner.winnerName && (
+                                                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{winner.winnerName}</span>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <span className="text-gray-300 italic text-sm">Not Awarded</span>
                                                     )}
