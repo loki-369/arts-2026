@@ -78,9 +78,9 @@ export default function AdminPage() {
             setFirstPlace("");
             setSecondPlace("");
             setThirdPlace("");
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error publishing result.");
+            alert("Error publishing result: " + (error.message || error));
         }
     };
 

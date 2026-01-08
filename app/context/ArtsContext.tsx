@@ -143,20 +143,25 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
 
         try {
             await runTransaction(db, async (transaction) => {
-                // 1. Create Result Doc
+                // 1. PRE-READ: Get all team docs first (Reads must be before Writes)
+                const teamReads = await Promise.all(winners.map(async (winner) => {
+                    const teamRef = doc(db, "leaderboard", winner.teamName);
+                    const teamDoc = await transaction.get(teamRef);
+                    return { winner, teamRef, teamDoc };
+                }));
+
+                // 2. WRITE: Create Result Doc
                 const newResultRef = doc(collection(db, "results"));
                 transaction.set(newResultRef, {
                     eventName,
-                    winners, // [{ teamName: "Ruby", position: 1 }, ...]
+                    winners,
                     timestamp: serverTimestamp(),
                     addedBy: user.uid
                 });
 
-                // 2. Update Leaderboard for each winner
-                for (const winner of winners) {
+                // 3. WRITE: Update Leaderboard for each team
+                teamReads.forEach(({ winner, teamRef, teamDoc }) => {
                     const points = winner.position === 1 ? 10 : winner.position === 2 ? 5 : 3;
-                    const teamRef = doc(db, "leaderboard", winner.teamName);
-                    const teamDoc = await transaction.get(teamRef);
 
                     if (!teamDoc.exists()) {
                         transaction.set(teamRef, { teamName: winner.teamName, points: points });
@@ -164,7 +169,7 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
                         const newTotal = (teamDoc.data().points || 0) + points;
                         transaction.update(teamRef, { points: newTotal });
                     }
-                }
+                });
             });
         } catch (error) {
             console.error("Batch Transaction failed: ", error);
