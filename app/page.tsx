@@ -11,14 +11,7 @@ export default function Home() {
 
       <Leaderboard />
 
-      <footer className="py-24 text-center">
-        <div className="mb-4">
-          <span className="font-black text-2xl tracking-tighter text-[#1d1d1f]">K26</span>
-        </div>
-        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-          Engineered for Kalaravam 2026
-        </p>
-      </footer>
+
     </main>
   );
 }
