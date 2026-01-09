@@ -166,15 +166,28 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
                     addedBy: user.uid
                 });
 
-                // 3. WRITE: Update Leaderboard for each team
-                teamReads.forEach(({ winner, teamRef, teamDoc }) => {
-                    const points = POINTS_SCHEME[itemType][winner.position];
+                // 3. AGGREGATE: Calculate total points per team to avoid overwrite issues
+                const updates = new Map<string, number>();
 
-                    if (!teamDoc.exists()) {
-                        transaction.set(teamRef, { teamName: winner.teamName, points: points });
-                    } else {
-                        const newTotal = (teamDoc.data().points || 0) + points;
-                        transaction.update(teamRef, { points: newTotal });
+                winners.forEach(w => {
+                    const p = POINTS_SCHEME[itemType][w.position];
+                    const current = updates.get(w.teamName) || 0;
+                    updates.set(w.teamName, current + p);
+                });
+
+                // 4. WRITE: Update Leaderboard for each UNIQUE team
+                updates.forEach((pointsToAdd, teamName) => {
+                    // Find the pre-read doc
+                    const readData = teamReads.find(r => r.winner.teamName === teamName);
+
+                    if (readData) {
+                        const { teamRef, teamDoc } = readData;
+                        if (!teamDoc.exists()) {
+                            transaction.set(teamRef, { teamName, points: pointsToAdd });
+                        } else {
+                            const newTotal = (teamDoc.data().points || 0) + pointsToAdd;
+                            transaction.update(teamRef, { points: newTotal });
+                        }
                     }
                 });
             });
