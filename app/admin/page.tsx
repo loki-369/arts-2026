@@ -63,11 +63,17 @@ export default function AdminPage() {
             return;
         }
 
-        // Prevent duplicate teams in podium
-        if (new Set([firstPlace, secondPlace, thirdPlace]).size !== 3) {
-            alert("A team cannot win multiple positions in the same event!");
-            return;
+        // Validation: For Group Items, same team cannot win multiple prizes
+        if (itemType === 'group') {
+            const winners = [firstPlace, secondPlace, thirdPlace];
+            const uniqueWinners = new Set(winners);
+            if (uniqueWinners.size !== winners.length) {
+                alert("A team cannot win multiple positions in the same event! (Group Item Rule)");
+                return;
+            }
         }
+
+
 
         try {
             // Use the batch function we added to context
