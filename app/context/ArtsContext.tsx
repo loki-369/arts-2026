@@ -49,7 +49,7 @@ type ArtsContextType = {
     login: (email: string, pin: string) => Promise<void>;
     logout: () => Promise<void>;
     updatePoints: (teamName: string, pointsToAdd: number, eventId: string) => Promise<void>;
-    publishBatchResult: (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[]) => Promise<void>;
+    publishBatchResult: (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[], itemType: 'individual' | 'group') => Promise<void>;
     resetPoints: () => Promise<void>;
     loading: boolean;
 };
@@ -138,8 +138,14 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const publishBatchResult = async (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[]) => {
+    const publishBatchResult = async (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[], itemType: 'individual' | 'group') => {
         if (!user) throw new Error("Unauthorized");
+
+        // Define Points Scheme
+        const POINTS_SCHEME = {
+            'group': { 1: 10, 2: 5, 3: 3 },
+            'individual': { 1: 5, 2: 3, 3: 2 }
+        };
 
         try {
             await runTransaction(db, async (transaction) => {
@@ -154,6 +160,7 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
                 const newResultRef = doc(collection(db, "results"));
                 transaction.set(newResultRef, {
                     eventName,
+                    itemType,
                     winners,
                     timestamp: serverTimestamp(),
                     addedBy: user.uid
@@ -161,7 +168,7 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
 
                 // 3. WRITE: Update Leaderboard for each team
                 teamReads.forEach(({ winner, teamRef, teamDoc }) => {
-                    const points = winner.position === 1 ? 10 : winner.position === 2 ? 5 : 3;
+                    const points = POINTS_SCHEME[itemType][winner.position];
 
                     if (!teamDoc.exists()) {
                         transaction.set(teamRef, { teamName: winner.teamName, points: points });

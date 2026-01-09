@@ -27,6 +27,7 @@ export default function AdminPage() {
 
     // Batch Result State
     const [eventName, setEventName] = useState("");
+    const [itemType, setItemType] = useState<'individual' | 'group'>('individual');
     const [firstPlace, setFirstPlace] = useState("");
     const [firstPlaceName, setFirstPlaceName] = useState("");
     const [secondPlace, setSecondPlace] = useState("");
@@ -74,7 +75,7 @@ export default function AdminPage() {
                 { teamName: firstPlace, winnerName: firstPlaceName, position: 1 },
                 { teamName: secondPlace, winnerName: secondPlaceName, position: 2 },
                 { teamName: thirdPlace, winnerName: thirdPlaceName, position: 3 }
-            ]);
+            ], itemType);
 
             alert("Leaderboard Updated & Result Published!");
             setEventName("");
@@ -133,7 +134,7 @@ export default function AdminPage() {
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold text-gray-900">Result Publisher</h1>
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wider">v2.0</span>
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wider">v2.1</span>
                         </div>
                         <p className="text-sm text-gray-500">Logged in as {user.email}</p>
                     </div>
@@ -147,8 +148,44 @@ export default function AdminPage() {
 
                     <form onSubmit={handleBatchPublish} className="space-y-8">
 
-                        {/* Event Name */}
-                        <div className="space-y-2">
+                        {/* Event Type Selection */}
+                        <div className="flex gap-4 p-1">
+                            <label className={`flex-1 cursor-pointer p-4 rounded-xl border-2 transition-all ${itemType === 'individual' ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-200'}`}>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="radio"
+                                        name="itemType"
+                                        value="individual"
+                                        checked={itemType === 'individual'}
+                                        onChange={(e) => setItemType(e.target.value as 'individual')}
+                                        className="w-5 h-5 accent-black"
+                                    />
+                                    <div>
+                                        <p className="font-bold text-gray-900">Individual Item</p>
+                                        <p className="text-xs text-gray-400">1st: 5pts • 2nd: 3pts • 3rd: 2pts</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label className={`flex-1 cursor-pointer p-4 rounded-xl border-2 transition-all ${itemType === 'group' ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-200'}`}>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="radio"
+                                        name="itemType"
+                                        value="group"
+                                        checked={itemType === 'group'}
+                                        onChange={(e) => setItemType(e.target.value as 'group')}
+                                        className="w-5 h-5 accent-black"
+                                    />
+                                    <div>
+                                        <p className="font-bold text-gray-900">Group Item</p>
+                                        <p className="text-xs text-gray-400">1st: 10pts • 2nd: 5pts • 3rd: 3pts</p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="space-y-6">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Event Name</label>
                             <input
                                 type="text"
