@@ -242,15 +242,14 @@ export default function AdminPage() {
                 <ScheduleManager />
 
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100">
-                    <h2 className="text-lg font-bold text-red-600 mb-4">Danger Zone</h2>
-                    <p className="text-gray-500 mb-4 text-sm">This will DELETE ALL TEAMS and re-initialize with the official Departments.</p>
+                    <p className="text-gray-500 mb-4 text-sm">This will PERMANENTLY DELETE ALL RESULTS and reset points to 0.</p>
                     <button
                         onClick={() => {
-                            if (confirm("ARE YOU SURE? This will wipe all data and reset to 0.")) resetPoints();
+                            if (confirm("⚠️ ERASING EVERYTHING! \n\nThis will delete all past results and reset the leaderboard. Are you sure?")) resetPoints();
                         }}
                         className="px-6 py-3 border-2 border-red-100 text-red-500 rounded-xl font-bold hover:bg-red-50 transition-colors"
                     >
-                        Reset & Initialize Leaderboard
+                        Erase All Data & Reset
                     </button>
                 </div>
             </div>

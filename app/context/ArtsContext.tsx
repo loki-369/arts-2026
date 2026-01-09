@@ -183,10 +183,15 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
         try {
             // 1. Delete ALL existing teams first (to remove old Gemstone teams)
             const lbSnapshot = await getDocs(collection(db, "leaderboard"));
+            const resultsSnapshot = await getDocs(collection(db, "results"));
 
-            // Delete loop
-            const deletePromises = lbSnapshot.docs.map(d => deleteDoc(doc(db, "leaderboard", d.id)));
-            await Promise.all(deletePromises);
+            // Delete loop for Leaderboard
+            const lbDeletePromises = lbSnapshot.docs.map(d => deleteDoc(doc(db, "leaderboard", d.id)));
+
+            // Delete loop for Results
+            const resultsDeletePromises = resultsSnapshot.docs.map(d => deleteDoc(doc(db, "results", d.id)));
+
+            await Promise.all([...lbDeletePromises, ...resultsDeletePromises]);
 
             // 2. Create NEW Team docs from INITIAL_TEAMS
             const createPromises = INITIAL_TEAMS.map(team =>
