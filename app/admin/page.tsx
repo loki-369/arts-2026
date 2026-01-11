@@ -28,12 +28,18 @@ export default function AdminPage() {
     // Batch Result State
     const [eventName, setEventName] = useState("");
     const [itemType, setItemType] = useState<'individual' | 'group'>('individual');
-    const [firstPlace, setFirstPlace] = useState("");
-    const [firstPlaceName, setFirstPlaceName] = useState("");
-    const [secondPlace, setSecondPlace] = useState("");
-    const [secondPlaceName, setSecondPlaceName] = useState("");
-    const [thirdPlace, setThirdPlace] = useState("");
-    const [thirdPlaceName, setThirdPlaceName] = useState("");
+
+    // New State Structure for Multiple Winners
+    type WinnerEntry = { team: string; name: string };
+    const [winners, setWinners] = useState<{
+        1: WinnerEntry[];
+        2: WinnerEntry[];
+        3: WinnerEntry[];
+    }>({
+        1: [{ team: "", name: "" }],
+        2: [{ team: "", name: "" }],
+        3: [{ team: "", name: "" }]
+    });
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -46,7 +52,7 @@ export default function AdminPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await login(email, password); // Use context login
+            await login(email, password);
         } catch (error) {
             alert("Login Failed: " + (error as any).message);
         }
@@ -56,41 +62,67 @@ export default function AdminPage() {
         await logout();
     };
 
+    // Helper to manage winner state
+    const updateWinner = (pos: 1 | 2 | 3, index: number, field: 'team' | 'name', value: string) => {
+        setWinners(prev => {
+            const newList = [...prev[pos]];
+            newList[index] = { ...newList[index], [field]: value };
+            return { ...prev, [pos]: newList };
+        });
+    };
+
+    const addWinnerRow = (pos: 1 | 2 | 3) => {
+        setWinners(prev => ({
+            ...prev,
+            [pos]: [...prev[pos], { team: "", name: "" }]
+        }));
+    };
+
+    const removeWinnerRow = (pos: 1 | 2 | 3, index: number) => {
+        setWinners(prev => {
+            const newList = [...prev[pos]];
+            newList.splice(index, 1);
+            return { ...prev, [pos]: newList };
+        });
+    };
+
     const handleBatchPublish = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!eventName || !firstPlace || !secondPlace || !thirdPlace) {
-            alert("Please fill in Event Name and all 3 positions.");
+
+        // Flatten winners for validation and submission
+        const allWinners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[] = [];
+        ([1, 2, 3] as const).forEach(pos => {
+            winners[pos].forEach(w => {
+                if (w.team) { // Only add if team is selected
+                    allWinners.push({ teamName: w.team, winnerName: w.name, position: pos });
+                }
+            });
+        });
+
+        if (!eventName || allWinners.length === 0) {
+            alert("Please fill in Event Name and at least one winner.");
             return;
         }
 
-        // Validation: For Group Items, same team cannot win multiple prizes
+        // Validation: For Group Items, same team cannot win multiple positions
         if (itemType === 'group') {
-            const winners = [firstPlace, secondPlace, thirdPlace];
-            const uniqueWinners = new Set(winners);
-            if (uniqueWinners.size !== winners.length) {
+            const uniqueTeams = new Set(allWinners.map(w => w.teamName));
+            if (uniqueTeams.size !== allWinners.length) {
                 alert("A team cannot win multiple positions in the same event! (Group Item Rule)");
                 return;
             }
         }
 
-
-
         try {
-            // Use the batch function we added to context
-            await publishBatchResult(eventName, [
-                { teamName: firstPlace, winnerName: firstPlaceName, position: 1 },
-                { teamName: secondPlace, winnerName: secondPlaceName, position: 2 },
-                { teamName: thirdPlace, winnerName: thirdPlaceName, position: 3 }
-            ], itemType);
+            await publishBatchResult(eventName, allWinners, itemType);
 
             alert("Leaderboard Updated & Result Published!");
             setEventName("");
-            setFirstPlace("");
-            setFirstPlaceName("");
-            setSecondPlace("");
-            setSecondPlaceName("");
-            setThirdPlace("");
-            setThirdPlaceName("");
+            setWinners({
+                1: [{ team: "", name: "" }],
+                2: [{ team: "", name: "" }],
+                3: [{ team: "", name: "" }]
+            });
         } catch (error: any) {
             console.error(error);
             alert("Error publishing result: " + (error.message || error));
@@ -140,7 +172,7 @@ export default function AdminPage() {
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold text-gray-900">Result Publisher</h1>
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wider">v2.1</span>
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wider">v3.0</span>
                         </div>
                         <p className="text-sm text-gray-500">Logged in as {user.email}</p>
                     </div>
@@ -150,7 +182,7 @@ export default function AdminPage() {
                 </header>
 
                 <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 space-y-8">
-                    <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Publish 3-Position Result</h2>
+                    <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Publish Result</h2>
 
                     <form onSubmit={handleBatchPublish} className="space-y-8">
 
@@ -205,77 +237,50 @@ export default function AdminPage() {
                         {/* Podium Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {/* 1st Place */}
-                            <div className="space-y-2 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                                <label className="flex items-center gap-2 text-xs font-bold text-yellow-600 uppercase tracking-widest">
-                                    <span className="text-lg">🥇</span> 1st Place (10 pts)
-                                </label>
-                                <select
-                                    className="w-full p-3 bg-white border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none font-medium mb-2"
-                                    value={firstPlace}
-                                    onChange={(e) => setFirstPlace(e.target.value)}
-                                >
-                                    <option value="">Select Team</option>
-                                    {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Winner Name(s)"
-                                    className="w-full p-3 bg-white border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-sm placeholder-gray-400"
-                                    value={firstPlaceName}
-                                    onChange={(e) => setFirstPlaceName(e.target.value)}
-                                />
-                            </div>
+                            <PositionInput
+                                position={1}
+                                title="1st Place (10 pts)"
+                                icon="🥇"
+                                colorClass="yellow"
+                                winners={winners[1]}
+                                teams={teams}
+                                onUpdate={updateWinner}
+                                onAdd={addWinnerRow}
+                                onRemove={removeWinnerRow}
+                            />
 
                             {/* 2nd Place */}
-                            <div className="space-y-2 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                                <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                    <span className="text-lg">🥈</span> 2nd Place (5 pts)
-                                </label>
-                                <select
-                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none font-medium mb-2"
-                                    value={secondPlace}
-                                    onChange={(e) => setSecondPlace(e.target.value)}
-                                >
-                                    <option value="">Select Team</option>
-                                    {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Winner Name(s)"
-                                    className="w-full p-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none text-sm placeholder-gray-400"
-                                    value={secondPlaceName}
-                                    onChange={(e) => setSecondPlaceName(e.target.value)}
-                                />
-                            </div>
+                            <PositionInput
+                                position={2}
+                                title="2nd Place (5 pts)"
+                                icon="🥈"
+                                colorClass="gray"
+                                winners={winners[2]}
+                                teams={teams}
+                                onUpdate={updateWinner}
+                                onAdd={addWinnerRow}
+                                onRemove={removeWinnerRow}
+                            />
 
                             {/* 3rd Place */}
-                            <div className="space-y-2 p-4 bg-orange-50 rounded-xl border border-orange-100">
-                                <label className="flex items-center gap-2 text-xs font-bold text-orange-600 uppercase tracking-widest">
-                                    <span className="text-lg">🥉</span> 3rd Place (3 pts)
-                                </label>
-                                <select
-                                    className="w-full p-3 bg-white border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none font-medium mb-2"
-                                    value={thirdPlace}
-                                    onChange={(e) => setThirdPlace(e.target.value)}
-                                >
-                                    <option value="">Select Team</option>
-                                    {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Winner Name(s)"
-                                    className="w-full p-3 bg-white border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none text-sm placeholder-gray-400"
-                                    value={thirdPlaceName}
-                                    onChange={(e) => setThirdPlaceName(e.target.value)}
-                                />
-                            </div>
+                            <PositionInput
+                                position={3}
+                                title="3rd Place (3 pts)"
+                                icon="🥉"
+                                colorClass="orange"
+                                winners={winners[3]}
+                                teams={teams}
+                                onUpdate={updateWinner}
+                                onAdd={addWinnerRow}
+                                onRemove={removeWinnerRow}
+                            />
                         </div>
 
                         <button
                             type="submit"
                             className="w-full py-5 bg-black text-white rounded-xl font-bold text-lg hover:scale-[1.01] active:scale-[0.99] transition-all shadow-lg hover:shadow-2xl flex items-center justify-center gap-2"
                         >
-                            <span>Publish Full Result</span>
+                            <span>Publish Result</span>
                             <span className="text-xl">🚀</span>
                         </button>
                     </form>
@@ -296,6 +301,98 @@ export default function AdminPage() {
                     </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// Subcomponent for cleaner JSX
+function PositionInput({
+    position,
+    title,
+    icon,
+    colorClass,
+    winners,
+    teams,
+    onUpdate,
+    onAdd,
+    onRemove
+}: {
+    position: 1 | 2 | 3;
+    title: string;
+    icon: string;
+    colorClass: 'yellow' | 'gray' | 'orange';
+    winners: { team: string; name: string }[];
+    teams: { name: string }[];
+    onUpdate: (pos: 1 | 2 | 3, index: number, field: 'team' | 'name', value: string) => void;
+    onAdd: (pos: 1 | 2 | 3) => void;
+    onRemove: (pos: 1 | 2 | 3, index: number) => void;
+}) {
+    const bgColors = {
+        yellow: 'bg-yellow-50 border-yellow-100',
+        gray: 'bg-gray-50 border-gray-200',
+        orange: 'bg-orange-50 border-orange-100'
+    };
+    const textColors = {
+        yellow: 'text-yellow-600',
+        gray: 'text-gray-500',
+        orange: 'text-orange-600'
+    };
+    const focusRing = {
+        yellow: 'focus:ring-yellow-400',
+        gray: 'focus:ring-gray-400',
+        orange: 'focus:ring-orange-400'
+    };
+    const border = {
+        yellow: 'border-yellow-200',
+        gray: 'border-gray-300',
+        orange: 'border-orange-200'
+    };
+
+    return (
+        <div className={`space-y-3 p-4 rounded-xl border ${bgColors[colorClass]}`}>
+            <div className="flex justify-between items-center">
+                <label className={`flex items-center gap-2 text-xs font-bold ${textColors[colorClass]} uppercase tracking-widest`}>
+                    <span className="text-lg">{icon}</span> {title}
+                </label>
+                <button
+                    type="button"
+                    onClick={() => onAdd(position)}
+                    className="text-xs bg-white border border-gray-200 px-2 py-1 rounded hover:bg-gray-50"
+                >
+                    + Add
+                </button>
+            </div>
+
+            {winners.map((winner, idx) => (
+                <div key={idx} className="relative group">
+                    <div className="space-y-2">
+                        <select
+                            className={`w-full p-2 bg-white border ${border[colorClass]} rounded-lg focus:ring-2 ${focusRing[colorClass]} outline-none font-medium text-sm`}
+                            value={winner.team}
+                            onChange={(e) => onUpdate(position, idx, 'team', e.target.value)}
+                        >
+                            <option value="">Select Team</option>
+                            {teams.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                        </select>
+                        <input
+                            type="text"
+                            placeholder="Winner Name(s)"
+                            className={`w-full p-2 bg-white border ${border[colorClass]} rounded-lg focus:ring-2 ${focusRing[colorClass]} outline-none text-xs placeholder-gray-400`}
+                            value={winner.name}
+                            onChange={(e) => onUpdate(position, idx, 'name', e.target.value)}
+                        />
+                    </div>
+                    {winners.length > 1 && (
+                        <button
+                            type="button"
+                            onClick={() => onRemove(position, idx)}
+                            className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            ×
+                        </button>
+                    )}
+                </div>
+            ))}
         </div>
     );
 }
