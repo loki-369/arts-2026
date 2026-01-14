@@ -77,27 +77,33 @@ export default function ResultsPage() {
                                     </div>
                                     <div className="p-6 flex-1 flex flex-col gap-4">
                                         {[1, 2, 3].map((pos) => {
-                                            const winner = result.winners?.find(w => w.position === pos);
+                                            const winners = result.winners?.filter(w => w.position === pos);
                                             return (
-                                                <div key={pos} className="flex items-center gap-4">
-                                                    <div className={`
-                                                        w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
-                                                        ${pos === 1 ? 'bg-yellow-100 text-yellow-700' :
-                                                            pos === 2 ? 'bg-gray-100 text-gray-600' :
-                                                                'bg-orange-50 text-orange-700'}
-                                                    `}>
-                                                        {pos === 1 ? '1' : pos === 2 ? '2' : '3'}
-                                                    </div>
-                                                    {winner ? (
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-gray-800 text-lg leading-tight">{winner.teamName}</span>
-                                                            {winner.winnerName && (
-                                                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{winner.winnerName}</span>
+                                                <div key={pos} className="flex flex-col gap-2">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className={`
+                                                            w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+                                                            ${pos === 1 ? 'bg-yellow-100 text-yellow-700' :
+                                                                pos === 2 ? 'bg-gray-100 text-gray-600' :
+                                                                    'bg-orange-50 text-orange-700'}
+                                                        `}>
+                                                            {pos === 1 ? '1' : pos === 2 ? '2' : '3'}
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 w-full">
+                                                            {winners && winners.length > 0 ? (
+                                                                winners.map((winner, idx) => (
+                                                                    <div key={idx} className="flex flex-col border-b border-gray-50 last:border-0 pb-1 last:pb-0">
+                                                                        <span className="font-bold text-gray-800 text-lg leading-tight">{winner.teamName}</span>
+                                                                        {winner.winnerName && (
+                                                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{winner.winnerName}</span>
+                                                                        )}
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <span className="text-gray-300 italic text-sm py-1">Not Awarded</span>
                                                             )}
                                                         </div>
-                                                    ) : (
-                                                        <span className="text-gray-300 italic text-sm">Not Awarded</span>
-                                                    )}
+                                                    </div>
                                                 </div>
                                             );
                                         })}

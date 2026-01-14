@@ -54,7 +54,8 @@ export default function AdminPage() {
         try {
             await login(email, password);
         } catch (error) {
-            alert("Login Failed: " + (error as any).message);
+            const errMsg = error instanceof Error ? error.message : "Unknown login error";
+            alert("Login Failed: " + errMsg);
         }
     };
 
@@ -123,9 +124,10 @@ export default function AdminPage() {
                 2: [{ team: "", name: "" }],
                 3: [{ team: "", name: "" }]
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            alert("Error publishing result: " + (error.message || error));
+            const errMsg = error instanceof Error ? error.message : "Unknown error";
+            alert("Error publishing result: " + errMsg);
         }
     };
 
@@ -289,6 +291,12 @@ export default function AdminPage() {
                 {/* Schedule Manager */}
                 <ScheduleManager />
 
+                {/* RECENT RESULTS SECTION */}
+                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+                    <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4">Recent Results</h2>
+                    <ResultList />
+                </div>
+
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100">
                     <p className="text-gray-500 mb-4 text-sm">This will PERMANENTLY DELETE ALL RESULTS and reset points to 0.</p>
                     <button
@@ -301,6 +309,85 @@ export default function AdminPage() {
                     </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// Result List Component
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Result } from '../context/ArtsContext';
+
+function ResultList() {
+    const { deleteResult } = useArts();
+    const [results, setResults] = useState<Result[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Subscribe to last 20 results
+        const q = query(collection(db, "results"), orderBy("timestamp", "desc"), limit(20));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const list: Result[] = [];
+            snapshot.forEach(doc => {
+                list.push({ id: doc.id, ...doc.data() } as Result);
+            });
+            setResults(list);
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleDelete = async (id: string, name: string) => {
+        if (confirm(`Are you sure you want to delete "${name}"? \n\nThis will remove the result and DEDUCT the points from the leaderboard.`)) {
+            try {
+                await deleteResult(id);
+                // alert("Result deleted!"); // Optional: Toast notification
+            } catch (e: any) {
+                alert("Delete failed: " + e.message);
+            }
+        }
+    };
+
+    if (loading) return <div className="text-center py-10">Loading results...</div>;
+    if (results.length === 0) return <div className="text-gray-400 text-center py-10">No results published yet.</div>;
+
+    return (
+        <div className="space-y-4">
+            {results.map(r => (
+                <div key={r.id} className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50 p-4 rounded-xl border border-gray-100 gap-4">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-900">{r.eventName}</h3>
+                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${r.itemType === 'group' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {r.itemType}
+                            </span>
+                        </div>
+
+                        <div className="mt-2 text-sm space-y-1">
+                            {[1, 2, 3].map((pos) => {
+                                const winners = r.winners?.filter((w: any) => w.position === pos);
+                                if (!winners || winners.length === 0) return null;
+                                return (
+                                    <div key={pos} className="flex items-center gap-2 text-gray-600">
+                                        <span className="font-bold w-4">{pos === 1 ? '🥇' : pos === 2 ? '🥈' : '🥉'}</span>
+                                        <span>{winners.map((w: any) => `${w.teamName} ${w.winnerName ? `(${w.winnerName})` : ''}`).join(', ')}</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2 font-mono">
+                            {r.timestamp?.toDate().toLocaleString()}
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={() => handleDelete(r.id, r.eventName)}
+                        className="px-4 py-2 bg-white border border-gray-200 text-red-500 text-xs font-bold rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors whitespace-nowrap"
+                    >
+                        Delete Result
+                    </button>
+                </div>
+            ))}
         </div>
     );
 }

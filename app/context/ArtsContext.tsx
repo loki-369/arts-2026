@@ -50,6 +50,7 @@ type ArtsContextType = {
     logout: () => Promise<void>;
     updatePoints: (teamName: string, pointsToAdd: number, eventId: string) => Promise<void>;
     publishBatchResult: (eventName: string, winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[], itemType: 'individual' | 'group') => Promise<void>;
+    deleteResult: (resultId: string) => Promise<void>;
     resetPoints: () => Promise<void>;
     loading: boolean;
 };
@@ -228,12 +229,74 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const deleteResult = async (resultId: string) => {
+        if (!user) throw new Error("Unauthorized");
+
+        // Define Points Scheme (Same as publish)
+        const POINTS_SCHEME: Record<string, Record<number, number>> = {
+            'group': { 1: 10, 2: 5, 3: 3 },
+            'individual': { 1: 5, 2: 3, 3: 2 }
+        };
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                // 1. Get Result Doc to know what to reverse
+                const resultRef = doc(db, "results", resultId);
+                const resultDoc = await transaction.get(resultRef);
+
+                if (!resultDoc.exists()) throw new Error("Result not found");
+
+                const resultData = resultDoc.data() as any; // Cast for now, but we know structure
+                const { winners, itemType } = resultData;
+
+                // 2. Calculate points to subtract per team
+                const deductionMap = new Map<string, number>();
+                winners.forEach((w: any) => {
+                    const p = POINTS_SCHEME[itemType][w.position];
+                    const current = deductionMap.get(w.teamName) || 0;
+                    deductionMap.set(w.teamName, current + p);
+                });
+
+                // 3. PRE-READ Team Docs
+                const teamReads = await Promise.all(Array.from(deductionMap.keys()).map(async (teamName) => {
+                    const teamRef = doc(db, "leaderboard", teamName);
+                    const teamDoc = await transaction.get(teamRef);
+                    return { teamName, teamRef, teamDoc };
+                }));
+
+                // 4. WRITE: Update Leaderboard (Deduct Points)
+                deductionMap.forEach((pointsToDeduct, teamName) => {
+                    const readData = teamReads.find(r => r.teamName === teamName);
+                    if (readData && readData.teamDoc.exists()) {
+                        const currentPoints = readData.teamDoc.data().points || 0;
+                        const newTotal = Math.max(0, currentPoints - pointsToDeduct); // Prevent negative
+                        transaction.update(readData.teamRef, { points: newTotal });
+                    }
+                });
+
+                // 5. DELETE Result Doc
+                transaction.delete(resultRef);
+            });
+        } catch (error) {
+            console.error("Delete Transaction failed: ", error);
+            throw error;
+        }
+    };
+
     return (
-        <ArtsContext.Provider value={{ teams, user, login, logout, updatePoints, publishBatchResult, resetPoints, loading }}>
+        <ArtsContext.Provider value={{ teams, user, login, logout, updatePoints, publishBatchResult, deleteResult, resetPoints, loading }}>
             {children}
         </ArtsContext.Provider>
     );
 }
+
+export type Result = {
+    id: string;
+    eventName: string;
+    itemType: 'individual' | 'group';
+    winners: { teamName: string; winnerName: string; position: 1 | 2 | 3 }[];
+    timestamp: any;
+};
 
 export function useArts() {
     const context = useContext(ArtsContext);
