@@ -144,8 +144,8 @@ export function ArtsProvider({ children }: { children: React.ReactNode }) {
 
         // Define Points Scheme
         const POINTS_SCHEME = {
-            'group': { 1: 10, 2: 5, 3: 3 },
-            'individual': { 1: 5, 2: 3, 3: 2 }
+            'group': { 1: 10, 2: 6, 3: 2 },
+            'individual': { 1: 5, 2: 3, 3: 1 }
         };
 
         try {

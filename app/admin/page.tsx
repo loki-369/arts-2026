@@ -202,7 +202,7 @@ export default function AdminPage() {
                                     />
                                     <div>
                                         <p className="font-bold text-gray-900">Individual Item</p>
-                                        <p className="text-xs text-gray-400">1st: 5pts • 2nd: 3pts • 3rd: 2pts</p>
+                                        <p className="text-xs text-gray-400">1st: 5pts • 2nd: 3pts • 3rd: 1pt</p>
                                     </div>
                                 </div>
                             </label>
@@ -219,7 +219,7 @@ export default function AdminPage() {
                                     />
                                     <div>
                                         <p className="font-bold text-gray-900">Group Item</p>
-                                        <p className="text-xs text-gray-400">1st: 10pts • 2nd: 5pts • 3rd: 3pts</p>
+                                        <p className="text-xs text-gray-400">1st: 10pts • 2nd: 6pts • 3rd: 2pts</p>
                                     </div>
                                 </div>
                             </label>
